@@ -97,8 +97,7 @@ Stream<(AuthState, Effect)> loginAsync(AuthState s, Creds c) async* {
 ## StateContainer
 
 ```dart
-final container = StateContainer<int>(0);
-container.addDispatcher(myDispatcher);
+final container = StateContainer<int>(0, onCreate: (c) => c.addDispatcher(myDispatcher));
 container.transform<int>((s, a) => (s + a, const NoEffect()), 5);
 container.transformAsync<void>((s, _) async* { yield (1, NoEffect()); yield (2, NoEffect()); }, null);
 container.removeDispatcher(myDispatcher); // when done
@@ -107,6 +106,7 @@ container.dispose(); // clears dispatchers, closes trace stream
 
 | Method | Notes |
 |---|---|
+| `StateContainer(value, {onCreate})` | Constructor. `onCreate` is called once after construction with the new container. |
 | `transform(t, args)` | Sync, one yield, sets state, dispatches effect |
 | `transformAsync(t, args)` | Streams yields, sets state per emission, dispatches each |
 | `addDispatcher(d)` | Prepend dispatcher to chain. `null` is ignored |
@@ -123,19 +123,25 @@ StateContainer.effectDispatcher = (e) { print(e); return e; }; // global, all ne
 Re-exported `GetIt` instance. Import once: `import 'package:yield_state/yield_state.dart';`
 
 ```dart
-services.registerState<AuthState>(const LoggedOut(), dispatcher: authDispatcher);
-services<StateContainer<AuthState>>().transform(login, creds);
+services.registerState<AuthState>(
+  const LoggedOut(),
+  onCreate: (c) => c.addDispatcher(authDispatcher),
+);
+services.getState<AuthState>().transform(login, creds);
 ```
 
-`registerState<TState>(initialState, {dispatcher, onCreated, instanceName})` —
-lazy singleton `StateContainer`. Created on first `services<StateContainer<TState>>()`.
-
+`registerState<TState>(initialState, {onCreate, instanceName})` —
+lazy singleton `StateContainer`. `onCreate` is called once after construction
+for custom setup (e.g. adding dispatchers).
+`getState<TState>({instanceName})` — typed convenience wrapper around
+`get<StateContainer<TState>>()`. Retrieves the registered container for `TState`.
 ## Widgets
 
 ```dart
 // Create+own container (auto-disposed). .value injects existing.
 StateProvider<AuthState>(
   create: (_) => services<StateContainer<AuthState>>().value,
+  onCreate: (c) => c.addDispatcher(authDispatcher),
   child: MaterialApp(home: ...),
 )
 

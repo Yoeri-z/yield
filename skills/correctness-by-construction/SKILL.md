@@ -72,8 +72,8 @@ class LoggedIn extends AuthState { final User user; const LoggedIn(this.user); }
   LoggedIn() => (s, const NoEffect()),
 };
 
-services.registerState<AuthState>(const LoggedOut(), dispatcher: authDispatcher);
-services<StateContainer<AuthState>>().transform(login, creds);
+services.registerState<AuthState>(const LoggedOut(), onCreate: (c) => c.addDispatcher(authDispatcher));
+services.getState<AuthState>().transform(login, creds);
 ```
 
 ### Rule 3: Every transform gets a test the moment it is created
@@ -255,7 +255,7 @@ root thin.
 // lib/domain/auth/auth_registration.dart
 void registerAuth(GetIt s) {
   s.registerLazySingleton<AuthRepo>(() => AuthRepoImpl(s()));
-  s.registerState<AuthState>(const LoggedOut(), dispatcher: authDispatcher);
+  s.registerState<AuthState>(const LoggedOut(), onCreate: (c) => c.addDispatcher(authDispatcher));
 }
 
 // lib/domain/cart/cart_registration.dart
@@ -300,22 +300,26 @@ Retrieve in transforms (always sync `services<T>()`):
 
 | Tool | Role |
 |---|---|
-| `StateContainer<TState>` | Holds state. `transform` / `transformAsync`. Effect dispatch chain. |
-| `StateProvider<TState>` | Widget-tree injection. Create-and-own (auto-dispose) or `.value`. |
-| `services.registerState<TState>(initial, {dispatcher, onCreated})` | Lazy singleton `StateContainer` in GetIt. |
+| `StateContainer<TState>(value, {onCreate})` | Holds state. `onCreate` called once after construction. `transform` / `transformAsync`. Effect dispatch chain. |
+| `StateProvider<TState>` | Widget-tree injection. Create-and-own (auto-dispose) or `.value`. Supports `onCreate`. |
+| `services.registerState<TState>(initial, {onCreate})` | Lazy singleton `StateContainer` in GetIt. |
+| `services.getState<TState>({instanceName})` | Retrieve registered `StateContainer<TState>` by type. |
 
 ```dart
-final container = StateContainer<int>(0);
-container.addDispatcher(logger);
+final container = StateContainer<int>(0, onCreate: (c) => c.addDispatcher(logger));
 container.transform<int>((s, a) => (s + a, const NoEffect()), 5);
 
 StateProvider<AuthState>(
   create: (_) => const LoggedOut(),
-  dispatcher: authDispatcher,
+  onCreate: (c) => c.addDispatcher(authDispatcher),
   child: MaterialApp(home: ...),
 );
 
-services.registerState<AuthState>(const LoggedOut(), dispatcher: authDispatcher);
+services.registerState<AuthState>(const LoggedOut(), onCreate: (c) => c.addDispatcher(authDispatcher));
+
+// Retrieve the registered container:
+final auth = services.getState<AuthState>();
+auth.transform(login, creds);
 ```
 
 ---
@@ -446,7 +450,7 @@ tearDown(() => services.reset());
 
 test('login calls repo.login', () {
   when(services<AuthRepo>().login(any, any)).thenReturn(testUser);
-  services<StateContainer<AuthState>>().transform(handleLogin, creds);
+  services.getState<AuthState>().transform(handleLogin, creds);
   verify(services<AuthRepo>().login(creds.email, creds.password)).called(1);
 });
 ```

@@ -36,11 +36,30 @@ typedef Dispatcher = Effect? Function(Effect effect);
 /// ```
 class StateContainer<TState> extends ValueNotifier<TState> {
   /// Creates a container with [initialState].
-  StateContainer(super._value);
+  ///
+  /// If [onCreate] is provided, it is called immediately after construction
+  /// with this container as the argument. Use it to set up dispatchers,
+  /// apply an initial transform, or wire up any post-construction logic
+  /// without subclassing:
+  ///
+  /// ```dart
+  /// final container = StateContainer<AuthState>(
+  ///   const LoggedOut(),
+  ///   onCreate: (c) => c.addDispatcher(authDispatcher),
+  /// );
+  /// ```
+  StateContainer(super._value, {this.onCreate}) {
+    onCreate?.call(this);
+  }
 
   /// Global dispatcher applied to every new [StateContainer].
   static Dispatcher? effectDispatcher;
 
+  /// Callback invoked once, immediately after construction.
+  ///
+  /// Receives the newly created [StateContainer] so you can add dispatchers,
+  /// run an initial transform, or perform any setup — without subclassing.
+  final void Function(StateContainer<TState> container)? onCreate;
   final List<Dispatcher> _dispatchers = [?effectDispatcher];
 
   /// Lazy broadcast stream that emits [Trace] records for each transition.

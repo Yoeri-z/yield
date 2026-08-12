@@ -196,7 +196,7 @@ nested `MultiEffect`s automatically.
 
 ```dart
 class StateContainer<TState> extends ValueNotifier<TState> {
-  StateContainer(TState value);
+  StateContainer(TState value, {void Function(StateContainer<TState> container)? onCreate});
   static Dispatcher? effectDispatcher;
 
   void addDispatcher(Dispatcher? dispatcher);
@@ -211,6 +211,7 @@ Holds state and runs transforms.
 
 | Method | Description |
 |---|---|
+| `StateContainer(value, {onCreate})` | Constructor. If `onCreate` is provided, it is called once after construction with the new container. |
 | `transform(transform, args)` | Apply a sync transform, set new state, dispatch effect. |
 | `transformAsync(transform, args)` | Apply an async transform, set state per emission. |
 | `addDispatcher(dispatcher)` | Prepend a dispatcher to the effect chain. `null` is ignored. |
@@ -249,7 +250,7 @@ continue the chain, or `null` to stop it.
 // Create and own a container (auto-disposed):
 StateProvider<TState>(
   create: (_) => InitialState(),
-  dispatcher: myDispatcher,
+  onCreate: (c) => c.addDispatcher(myDispatcher),
   child: MyApp(),
 );
 
@@ -319,11 +320,19 @@ Global service locator for registering repositories, services, etc.
 ```dart
 services.registerState<AuthState>(
   const Unauthenticated(),
-  dispatcher: authDispatcher,
+  onCreate: (c) => c.addDispatcher(authDispatcher),
 );
 ```
 
 Registers a lazy singleton `StateContainer<TState>` in GetIt.
+
+```dart
+final authContainer = services.getState<AuthState>();
+```
+
+Retrieves the registered `StateContainer<TState>` by type — a typed convenience
+wrapper around `get<StateContainer<TState>>()`. Throws if no container is
+registered for `TState`.
 
 ---
 

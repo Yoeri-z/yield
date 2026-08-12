@@ -16,17 +16,17 @@ import 'package:yield_state/yield_state.dart';
 class StateProvider<TState> extends ListenableProvider<StateContainer<TState>> {
   /// Creates and registers a new [StateContainer] with the given [create] callback.
   ///
-  /// Pass an optional [dispatcher] to intercept effects produced by this container.
+  /// Use the optional [onCreate] callback for custom post-construction setup
+  /// (e.g. adding dispatchers, running an initial transform).
   StateProvider({
     super.key,
     required Create<TState> create,
-    Dispatcher? dispatcher,
+    void Function(StateContainer<TState> container)? onCreate,
     super.child,
     super.builder,
     super.lazy,
   }) : super(
-         create: (context) =>
-             StateContainer(create(context))..addDispatcher(dispatcher),
+         create: (context) => StateContainer(create(context), onCreate: onCreate),
        );
 
   /// Injects an existing [StateContainer] into the tree.

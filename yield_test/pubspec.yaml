@@ -1,6 +1,6 @@
 name: yield_test
 description: "Testing utilities for the yield_state package"
-version: 0.0.1
+version: 0.0.2
 homepage: https://github.com/Yoeri-z/yield
 repository: https://github.com/Yoeri-z/yield
 
@@ -14,7 +14,7 @@ dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  yield_state: ^0.0.1
+  yield_state: ^0.0.2
 
 dev_dependencies:
 

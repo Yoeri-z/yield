@@ -1,0 +1,241 @@
+yield_state/lib/src/get_it_extension.dart:
+⋮
+│extension RegisterState on GetIt {
+│  /// Registers a lazy singleton [StateContainer] with [initialState].
+│  ///
+│  /// The container is created on first retrieval and disposed automatically
+│  /// when GetIt is reset. Use the optional [onCreate] callback for custom
+│  /// post-construction setup such as adding dispatchers.
+│  void registerState<TState>(
+│    TState initialState, {
+│    String? instanceName,
+│    void Function(StateContainer<TState> container)? onCreate,
+⋮
+│  StateContainer<TState> getState<TState>({String? instanceName}) =>
+⋮
+
+yield_state/lib/src/state/container.dart:
+⋮
+│typedef Trace<TState> = ({
+│  int runId,
+│  TState stateIn,
+│  TState stateOut,
+│  Effect effectOut,
+│  Object func,
+│  Object? args,
+⋮
+│typedef Dispatcher = Effect? Function(Effect effect);
+│
+⋮
+│class StateContainer<TState> extends ValueNotifier<TState> {
+│  /// Creates a container with [initialState].
+│  ///
+│  /// If [onCreate] is provided, it is called immediately after construction
+│  /// with this container as the argument. Use it to set up dispatchers,
+│  /// apply an initial transform, or wire up any post-construction logic
+│  /// without subclassing:
+│  ///
+│  /// ```dart
+│  /// final container = StateContainer<AuthState>(
+⋮
+│  StateContainer(super._value, {this.onCreate}) {
+│    onCreate?.call(this);
+⋮
+│  Stream<Trace<TState>> get trace {
+│    _traceController ??= StreamController.broadcast(sync: true);
+│
+│    return _traceController!.stream;
+⋮
+│  void _dispatchEffect(Effect effect) {
+│    switch (effect) {
+│      case NoEffect():
+│        break;
+│      case MultiEffect(:final effects):
+│        for (final e in effects) {
+│          _dispatchEffect(e);
+│        }
+│      default:
+│        for (final dispatcher in _dispatchers) {
+⋮
+│  void addDispatcher(Dispatcher? dispatcher) {
+│    if (dispatcher == null) return;
+│    _dispatchers.insert(0, dispatcher);
+⋮
+│  void removeDispatcher(Dispatcher? dispatcher) {
+│    if (dispatcher == null) return;
+│    _dispatchers.remove(dispatcher);
+⋮
+│  void transform<TArgs extends Object?>(
+│    StateTransform<TState, TArgs> transform,
+│    TArgs args,
+⋮
+│  Future<void> transformAsync<TArgs extends Object?>(
+│    AsyncStateTransform<TState, TArgs> transform,
+│    TArgs args,
+⋮
+│  void dispose() {
+│    _dispatchers.clear();
+│    _traceController?.close();
+│    super.dispose();
+⋮
+
+yield_state/lib/src/state/effect.dart:
+⋮
+│abstract class Effect {
+│  const Effect();
+│
+│  /// Combines this effect with [other] into a [MultiEffect].
+│  MultiEffect operator +(Effect other) => and(other);
+│
+│  /// Combines this effect with [other] into a [MultiEffect].
+│  ///
+│  /// Both effects are unpacked via [unpack] before merging, so nested
+│  /// [MultiEffect]s are flattened automatically.
+│  MultiEffect and(Effect other) {
+│    return MultiEffect([...unpack(), ...other.unpack()]);
+⋮
+│  List<Effect> unpack() {
+│    return [this];
+⋮
+│class NoEffect extends Effect with Equatable {
+│  const NoEffect();
+│
+│  @override
+│  List<Object?> get props => const [];
+│
+│  /// Returns an empty list — [NoEffect] is silently dropped when combined.
+│  @override
+│  List<Effect> unpack() {
+│    return const [];
+⋮
+│class MultiEffect extends Effect with Equatable {
+│  const MultiEffect(this.effects);
+│
+│  /// The individual effects in this composite.
+│  final List<Effect> effects;
+│
+│  @override
+│  List<Object?> get props => [...effects];
+│
+│  /// Returns the inner [effects] list, flattening this composite.
+│  @override
+│  List<Effect> unpack() {
+│    return [...effects];
+⋮
+
+yield_state/lib/src/state/yield.dart:
+⋮
+│typedef Yield<TState> = (TState, Effect);
+│
+⋮
+│typedef StateTransform<TState, TArgs> = Yield<TState> Function(TState, TArgs);
+│
+⋮
+│typedef AsyncStateTransform<TState, TArgs> =
+⋮
+
+yield_state/lib/src/widgets/consumers.dart:
+⋮
+│class StateWatcher<TState> extends SingleChildStatelessWidget {
+│  /// Creates a watcher that rebuilds with the full [TState].
+│  const StateWatcher({super.key, required this.builder, super.child});
+│
+│  /// Builder called with the current [TState] value.
+│  final Widget Function(BuildContext context, TState value, Widget? child)
+│  builder;
+│
+│  @override
+│  Widget buildWithChild(BuildContext context, Widget? child) {
+│    return builder(
+│      context,
+│      context.watch<StateContainer<TState>>().value,
+│      child,
+│    );
+⋮
+│class StateSelector<TState, TSelected> extends SingleChildStatelessWidget {
+│  /// Creates a selector that derives [TSelected] from [TState].
+│  const StateSelector({
+│    super.key,
+│    required this.select,
+│    required this.builder,
+│    super.child,
+│  });
+│
+│  /// Projection from [TState] to the value to compare for rebuild.
+⋮
+│  Widget buildWithChild(BuildContext context, Widget? child) {
+│    return builder(context, context.select(select), child);
+⋮
+│class EffectDispatcher<TState> extends StatefulWidget {
+│  const EffectDispatcher({super.key, required this.dispatcher, required this.child});
+│
+│  final Dispatcher dispatcher;
+│  final Widget child;
+│
+│  @override
+│  State<EffectDispatcher<TState>> createState() =>
+│      _EffectDispatcherState<TState>();
+⋮
+│class _EffectDispatcherState<TState> extends State<EffectDispatcher<TState>> {
+│  StateContainer<TState>? container;
+│
+│  @override
+│  void didChangeDependencies() {
+│    super.didChangeDependencies();
+│    final newContainer = Provider.of<StateContainer<TState>>(context);
+│
+│    if (!identical(container, newContainer)) {
+│      container?.removeDispatcher(widget.dispatcher);
+│      newContainer.addDispatcher(widget.dispatcher);
+│      container = newContainer;
+│    }
+⋮
+│  void dispose() {
+│    container?.removeDispatcher(widget.dispatcher);
+│    super.dispose();
+⋮
+│  Widget build(BuildContext context) => widget.child;
+⋮
+
+yield_state/lib/src/widgets/providers.dart:
+⋮
+│class StateProvider<TState> extends ListenableProvider<StateContainer<TState>> {
+│  /// Creates and registers a new [StateContainer] with the given [create] callback.
+│  ///
+│  /// Use the optional [onCreate] callback for custom post-construction setup
+│  /// (e.g. adding dispatchers, running an initial transform).
+│  StateProvider({
+│    super.key,
+│    required Create<TState> create,
+│    void Function(StateContainer<TState> container)? onCreate,
+│    super.child,
+⋮
+
+
+yield_test/lib/yield_test.dart:
+⋮
+│void testTransform<TState, TArgs>(
+│  String description, {
+│  required TState initialState,
+│  required StateTransform<TState, TArgs> transform,
+│  required TArgs args,
+│  required Matcher expectedState,
+│  required List<Matcher> expectedEffects,
+⋮
+│void testAsyncTransform<TState, TArgs>(
+│  String description, {
+│  required TState initialState,
+│  required AsyncStateTransform<TState, TArgs> asyncTransform,
+│  required TArgs args,
+│  required List<Matcher> expectedStates,
+│  required List<Matcher> expectedEffects,
+⋮
+│void testFlow<TState>(
+│  String description, {
+│  required TState initialState,
+│  required FutureOr<void> Function(StateContainer<TState> container) act,
+│  required List<Matcher> expectStates,
+│  required List<Matcher>? expectEffects,
+⋮
+
+

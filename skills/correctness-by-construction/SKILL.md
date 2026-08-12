@@ -14,8 +14,7 @@ architecture, rules, and patterns used to build Flutter apps on top of the
 the primitives (`StateContainer`, transforms, `Effect`, `Dispatcher`), and
 correctness-by-construction prescribes how to use them.
 
-- Need the API for `(State, Effect)` transform functions, `StateContainer`,
-  dispatchers, widgets? → read [`yield-state`](../yield-state/SKILL.md).
+- Need the API for `yield_state`? → read [`repo-map`](./references/repo-map.txt).
 - Need the rules for structuring code, layering, services, testing? → keep
   reading this document.
 

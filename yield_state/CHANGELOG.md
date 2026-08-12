@@ -1,3 +1,6 @@
+## 0.0.4
+- Made consumer widgets fall back to services global.
+
 ## 0.0.3
 - Fixed `StateSelector` retrieving the wrong state.
 

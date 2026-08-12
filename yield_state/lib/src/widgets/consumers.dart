@@ -55,7 +55,13 @@ class StateSelector<TState, TSelected> extends SingleChildStatelessWidget {
 
   @override
   Widget buildWithChild(BuildContext context, Widget? child) {
-    return builder(context, context.select(select), child);
+    return builder(
+      context,
+      context.select<StateContainer<TState>, TSelected>(
+        (container) => select(container.value),
+      ),
+      child,
+    );
   }
 }
 
@@ -63,7 +69,11 @@ class StateSelector<TState, TSelected> extends SingleChildStatelessWidget {
 ///
 /// Can block effects from bubbling up by returning null.
 class EffectDispatcher<TState> extends StatefulWidget {
-  const EffectDispatcher({super.key, required this.dispatcher, required this.child});
+  const EffectDispatcher({
+    super.key,
+    required this.dispatcher,
+    required this.child,
+  });
 
   final Dispatcher dispatcher;
   final Widget child;

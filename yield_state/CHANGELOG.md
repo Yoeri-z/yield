@@ -1,3 +1,6 @@
+## 0.0.3
+- Fixed `StateSelector` retrieving the wrong state.
+
 ## 0.0.2
 - Added `onCreate` callback to `StateContainer` constructor for post-construction setup.
 - Wired `onCreate` through `StateProvider` and `registerState` extension.
